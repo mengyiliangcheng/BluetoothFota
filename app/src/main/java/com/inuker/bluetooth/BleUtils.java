@@ -6,8 +6,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -30,6 +33,32 @@ public class BleUtils {
         return ;
     }
 
+    public byte[] getAllNotify(){
+        ByteBuffer bb = ByteBuffer.allocate(128).order(
+                ByteOrder.BIG_ENDIAN);
+        byte b;
+        int size = queue.size();
+        int i = 0;
+        try {
+            mCV.block(1000);  /* 1s */
+            //System.out.println("queue size:" + queue.size());
+            for(i = 0;i < size;i ++) {
+                b = queue.get(i);
+                bb.put(b);
+                //System.out.println("queue:" + b);
+            }
+            b = 0;
+            bb.put(b);
+            System.out.println("get value:"+  BleUtils.bytes2hex(bb.array()));
+        }catch (Exception e) {
+            //e.printStackTrace();
+            queue.clear();
+            return Arrays.copyOfRange(bb.array(),0,i);
+        }
+        queue.clear();
+        return Arrays.copyOfRange(bb.array(),0,size);
+    }
+
     public byte getNotify(){
         byte b = 0;
         try {
@@ -38,7 +67,6 @@ public class BleUtils {
             System.out.println("get value:"+  b);
         }catch (Exception e) {
             //e.printStackTrace();
-
             return b;
         }
         queue.removeFirst();
@@ -46,6 +74,7 @@ public class BleUtils {
     }
 
     public void clearNotify(){
+        System.out.println("clear notify");
         queue.clear();
         mCV.close();
     }

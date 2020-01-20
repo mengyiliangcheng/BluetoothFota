@@ -62,6 +62,8 @@ public class CharacterActivity extends Activity implements View.OnClickListener 
     private boolean notify_succ = false;
 
     private int mProgressStatus =0;
+
+    private Fota fota;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,16 +102,17 @@ public class CharacterActivity extends Activity implements View.OnClickListener 
                 if (msg.what==0x111){
                     System.out.println("set progress :" + msg.arg1);
                     progressBar.setProgress(msg.arg1);
-                    //long use_time = (System.currentTimeMillis() - start_fota)/1000;
-                    //int rate = 0;
-                    //if(msg.arg2 != 0) {
-                    //    rate = msg.arg2 / (int) use_time;
-                     //   System.out.println("rate:" + rate);
-                    //}
                     int rate = msg.arg2;
                     progressText.setText(msg.arg1+"% " + rate + "b/s" );
                 }else if(msg.what == 0x100){
-                    SendFotaPackage();
+                    //SendFotaPackage();
+                    System.out.println("-------start fota");
+                    fota = new Fota(new String("/sdcard/Download/update.zip"),
+                            ClientManager.getClient(),mMac,mService.toString(),mCharacter.toString(),mHandler);
+                    mBtnSendPackage.setEnabled(false);
+                    mBtnSendPackage.setText("start send fota package");
+                    progressBar.setVisibility(View.VISIBLE);
+                    fota.start();
                 }
                 else if(msg.what==0x110) {
                     Toast.makeText(CharacterActivity.this,
@@ -175,9 +178,6 @@ public class CharacterActivity extends Activity implements View.OnClickListener 
         public void onNotify(UUID service, UUID character, byte[] value) {
             System.out.println("----------on notify");
             BleUtils.getInstance().setNotify(value);
-            //if (service.equals(mService) && character.equals(mCharacter)) {
-            //    mBtnNotify.setText(String.format("%s", ByteUtils.byteToString(value)));
-            //}
         }
 
         @Override
@@ -208,44 +208,6 @@ public class CharacterActivity extends Activity implements View.OnClickListener 
             }
         }
     };
-
-    private void SendFotaPackage(){
-        ByteBuffer bb = ByteBuffer.allocate(250).order(
-                ByteOrder.BIG_ENDIAN);
-        if(false == BleUtils.isFileExit("/sdcard/Download/update.zip"))
-        {
-            CommonUtils.toast("/sdcard/Download/update.zip文件不存在");
-            return;
-        }
-       // start_fota = System.currentTimeMillis();
-        System.out.println("--------------------calc md5:"+BleUtils.getFileMD5("/sdcard/Download/update.zip"));
-        System.out.println("--------------------file size:"+BleUtils.getFileSize("/sdcard/Download/update.zip"));
-        //String str = "{\"fota_data_size\":" +  BleUtils.getFileSize("/sdcard/Download/update.zip") + ",\"fota_data_hash_value\":\"245f86fa97e77f113bcc75772237f07c\"}";
-        JSONObject fota_json = new JSONObject();
-        try {
-            fota_json.put("fota_data_size", BleUtils.getFileSize("/sdcard/Download/update.zip"));
-            fota_json.put("fota_data_hash_value",BleUtils.getFileMD5("/sdcard/Download/update.zip"));
-        }catch(Exception e){
-            CommonUtils.toast("create JSON failed");
-            return;
-        }
-        String str = fota_json.toString();
-        System.out.println("--------------------json :"+str);
-        System.out.println("--------------------json size:"+Integer.toHexString(str.length()));
-        bb.put(ByteUtils.stringToBytes("F583"+Integer.toHexString(str.length())));
-        bb.put(str.getBytes());
-        System.out.println("fota json write:"+ new String(bb.array()));
-        ClientManager.getClient().write(mMac, mService, mCharacter,
-                bb.array(), mSendPackageRequestRsp);
-
-        CommonUtils.toast("start send fota package");
-        mBtnSendPackage.setEnabled(false);
-        mBtnSendPackage.setText("start send fota package");
-        progressBar.setVisibility(View.VISIBLE);
-        BleUtils.getInstance().clearNotify();
-        xmodem x = new xmodem(ClientManager.getClient(),mMac,mService.toString(),mCharacter.toString());
-        x.send("/sdcard/Download/update.zip",mHandler);
-    }
 
     private final BleMtuResponse mMtuResponse = new BleMtuResponse() {
         @Override

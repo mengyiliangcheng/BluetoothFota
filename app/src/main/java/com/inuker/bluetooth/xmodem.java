@@ -24,23 +24,23 @@ import java.util.UUID;
 public class xmodem {
 
     // 开始
-    private final byte SOH = 0x01;
+    public final byte SOH = 0x01;
     // 开始
-    private final byte STX = 0x02;
+    public final byte STX = 0x02;
     // 结束
-    private final byte EOT = 0x04;
+    public final byte EOT = 0x04;
     // 应答
-    private final byte ACK = 0x06;
+    public final byte ACK = 0x06;
     // 重传
-    private final byte NAK = 0x15;
+    public final byte NAK = 0x15;
     // 无条件结束
-    private final byte CAN = 0x18;
+    public final byte CAN = 0x18;
 
     // 以128字节块的形式传输数据
     //private final int SECTOR_SIZE = 128;
-    private final int SECTOR_SIZE = 1024;
+    public final int SECTOR_SIZE = 1024;
     // 最大错误（无应答）包数
-    private final int MAX_ERRORS = 10;
+    public final int MAX_ERRORS = 10;
 
     // 输入流，用于读取串口数据
     private InputStream inputStream;
@@ -52,10 +52,10 @@ public class xmodem {
         this.outputStream = outputStream;
     }
 
-    private BluetoothClient Client;
-    String MAC;
-    String serviceUUID;
-    String w_UUID;
+    protected BluetoothClient Client;
+    protected String MAC;
+    protected String serviceUUID;
+    protected String w_UUID;
 
     public xmodem(BluetoothClient mClient, String MAC, String serviceUUID, String w_UUID) {
         Client = mClient;
@@ -340,7 +340,7 @@ public class xmodem {
      * @throws IOException
      *             异常
      */
-    private byte getData() throws IOException {
+    protected byte getData() throws IOException {
         //return (byte) inputStream.read();
         return (byte)BleUtils.getInstance().getNotify();
     }
@@ -353,7 +353,7 @@ public class xmodem {
      * @throws IOException
      *             异常
      */
-    private void putData(int data) throws IOException {
+    protected void putData(int data) throws IOException {
         System.out.println("---------write:" + data);
         Client.write(MAC, UUID.fromString(serviceUUID), UUID.fromString(w_UUID), new byte[]{(byte) data}, new BleWriteResponse() {
             public void onResponse(int code) {
@@ -376,7 +376,7 @@ public class xmodem {
      * @throws IOException
      *             异常
      */
-    private void putChar(byte head,byte num,byte num2,byte[] data, short checkSum) throws IOException {
+    protected void putChar(byte head,byte num,byte num2,byte[] data, short checkSum) throws IOException {
         ByteBuffer bb = ByteBuffer.allocate(data.length + 5).order(
                 ByteOrder.BIG_ENDIAN);
         int pos = 0;
