@@ -1,1 +1,0 @@
-Bluetooth Fota Android App
