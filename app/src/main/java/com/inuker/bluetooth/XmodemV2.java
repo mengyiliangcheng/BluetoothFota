@@ -43,19 +43,20 @@ public class XmodemV2 extends xmodem {
     public boolean waitC()
     {
         int errorCount = 0;
-        while(errorCount < 100 && 67 != BleUtils.getInstance().getNotify())
+        while(errorCount < 1000 && 67 != BleUtils.getInstance().getNotify())
         {
             System.out.println("wait cccccc");
-            BleUtils.getInstance().clearNotify();
+            //BleUtils.getInstance().clearNotify();
             //CommonUtils.toast("wait c");
             errorCount ++;
+            /*
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            }
+            }*/
         }
-        if(errorCount >= 100) {
+        if(errorCount >= 1000) {
             System.out.println("wait c fail");
             return false;
         }else{
@@ -134,12 +135,14 @@ public class XmodemV2 extends xmodem {
                     boolean receive_nak = false;
                     ByteBuffer bb;
 
+                    /* 设置进度为0 */
                     Message m = new Message();
                     m.arg1 = 0;
                     m.arg2 = 0;
                     m.what = 0x111;
                     mHandler.sendMessage(m);
 
+                    /* 等c */
                     if(false == waitC()){
                         return ;
                     }
@@ -149,14 +152,17 @@ public class XmodemV2 extends xmodem {
                     if(null == bb){
                         return ;
                     }
-
+/*
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(10000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-
+*/
+                    /* 记录开始升级时间 */
                     start_fota = System.currentTimeMillis();
+
+                    /*  */
                     BleUtils.getInstance().clearNotify();
                     totalSize = bb.capacity();
                     while (totalSize > sendBytes) {
@@ -177,6 +183,7 @@ public class XmodemV2 extends xmodem {
 
                         /* 通知升级进度 */
                         long percent = sendBytes * 100 / totalSize;
+                        System.out.println("-------all send bytes:"+sendBytes);
                         notifyProgress((int)percent,sendBytes);
 
                         // 同一包数据最多发送10次
@@ -185,7 +192,7 @@ public class XmodemV2 extends xmodem {
                             System.out.println("---------send package num:"+(int)blockNumber);
                             checkSum = CRC16.calc(sector) & 0x00ffff;
                             putChar(STX,blockNumber,(byte)(~blockNumber),sector, (short) checkSum);
-                            //BleUtils.getInstance().clearNotify();
+
                             byte data = 0;
                             int count = 0;
                             while(count < 10000 && ACK != (data = BleUtils.getInstance().getNotify()))
@@ -199,20 +206,23 @@ public class XmodemV2 extends xmodem {
                                             break;
                                         }
                                     }
-                                    if(i > nak_info.length)
+                                    if(i >= nak_info.length)
                                     {
-                                        Log.i("xmodem v2","nak info err:");
+                                        Log.i("xmodem v2","nak info err:"+ new String(nak_info));
+                                        break;
                                     }
-                                    String str = new String(nak_info);
+                                    byte[] s = Arrays.copyOfRange(nak_info,0,i+1);
+                                    String str = new String(s);
                                     Log.i("xmodem v2","nak info:" + str);
-                                    //SONParser parser=new JSONParser();
-                                    //JSONObject js = (JSONObject)(JSONParser().parse(str));
                                     NakInfo nakInfo = JSON.parseObject(str,NakInfo.class);
                                     Log.i("xmodem v2","number:" + nakInfo.getNamber());
                                     Log.i("xmodem v2","len:" + nakInfo.getLen());
                                     blockNumber = (byte)nakInfo.getNamber();
                                     sendBytes = nakInfo.getLen();
                                     receive_nak = true;
+                                    if(false == waitC()){
+                                        return ;
+                                    }
                                     break;
                                 }
 
@@ -231,12 +241,6 @@ public class XmodemV2 extends xmodem {
                             }
 
 
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-
                             // 如果收到应答数据则跳出循环，发送下一包数据
                             // 未收到应答，错误包数+1，继续重发
                             if (data == ACK) {
@@ -245,9 +249,10 @@ public class XmodemV2 extends xmodem {
                                 ++errorCount;
                             }
                         }
-                        if(receive_nak)
+                        if(receive_nak) {
+                            receive_nak = false;
                             continue;
-
+                        }
                         if(errorCount >= MAX_ERRORS)
                         {
                             System.out.println("---------timeout!!!!!!!!!!");
@@ -298,7 +303,7 @@ public class XmodemV2 extends xmodem {
             sendbytes = (total_len < 500) ? total_len : 500;
             array = copyOfRange(bb.array(),pos,pos+sendbytes) ;
             pos += sendbytes;
-            //Log.e("xmodem v2","------send sub:"+BleUtils.bytes2hex(array));
+            Log.e("xmodem v2","------send sub:"+BleUtils.bytes2hex(array));
             Client.writeNoRsp(MAC, UUID.fromString(serviceUUID), UUID.fromString(w_UUID), array, new BleWriteResponse() {
                 public void onResponse(int code) {
                     if (code == Constants.REQUEST_SUCCESS) {
@@ -317,6 +322,12 @@ public class XmodemV2 extends xmodem {
             });
             System.out.println("--------send bytes:" + sendbytes);
             total_len -= sendbytes;
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

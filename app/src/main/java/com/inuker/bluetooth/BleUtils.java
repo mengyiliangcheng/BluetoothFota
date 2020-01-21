@@ -13,23 +13,30 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class BleUtils {
     private static BleUtils instance = new BleUtils();
     private BleUtils(){};
-    LinkedList<Byte> queue = new LinkedList<Byte>();
-    ConditionVariable mCV = new ConditionVariable();
+    private LinkedList<Byte> queue = new LinkedList<Byte>();
+    //ConditionVariable mCV = new ConditionVariable();
+    private Semaphore sem = new Semaphore(1);
+    private Lock lock = new ReentrantLock();
 
     public static BleUtils getInstance(){
         return instance;
     }
 
     public void setNotify(byte[] value){
+        lock.lock();
         for(int i = 0;i < value.length;i ++) {
             System.out.println("add value:"+value[i]);
             queue.addLast(value[i]);
-            mCV.open();
         }
+        lock.unlock();
+        sem.release(value.length);
         return ;
     }
 
@@ -39,14 +46,17 @@ public class BleUtils {
         byte b;
         int size = queue.size();
         int i = 0;
+
         try {
-            mCV.block(1000);  /* 1s */
-            //System.out.println("queue size:" + queue.size());
+            sem.acquire();
+            lock.lock();
+            System.out.println("queue size:" + queue.size());
             for(i = 0;i < size;i ++) {
                 b = queue.get(i);
                 bb.put(b);
                 //System.out.println("queue:" + b);
             }
+            lock.unlock();
             b = 0;
             bb.put(b);
             System.out.println("get value:"+  BleUtils.bytes2hex(bb.array()));
@@ -62,7 +72,7 @@ public class BleUtils {
     public byte getNotify(){
         byte b = 0;
         try {
-            mCV.block(1000);  /* 1s */
+            sem.acquire();
             b = queue.getFirst();
             System.out.println("get value:"+  b);
         }catch (Exception e) {
@@ -75,8 +85,15 @@ public class BleUtils {
 
     public void clearNotify(){
         System.out.println("clear notify");
+        lock.lock();
         queue.clear();
-        mCV.close();
+        lock.unlock();
+        try {
+            sem.acquire(sem.availablePermits());
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
 
     public static String getFileMD5(String path){
